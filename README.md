@@ -1,5 +1,4 @@
 # FusionComplexYOLO
-# AstyxComplexYOLOv4
 This repository contains a PyTorch implementation of [ComplexYOLO](https://arxiv.org/pdf/1803.06199.pdf) using YOLO version 4 and High/Low Level Sensorfusion. It is build to be applied on the LiDAR and RADAR data from the Astyx Dataset. For an implementation for the KITTI dataset see [here](https://github.com/maudzung/Complex-YOLOv4-Pytorch).
 
 ## Requirement
