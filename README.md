@@ -10,7 +10,6 @@ pip install -U -r requirements.txt
 
 #### Steps
 1. Install all requirements
-1. Download or clone this repo by using ```git clone https://github.com/BerensRWU/AstyxComplexYOLOv4/``` in the terminal.
 1. Save the Astyx dataset in the folder ```dataset```.(See Section Astyx HiRes).
 1. Download the weights for the RADAR and LiDAR detector from the moodle page of the Lecture. 
 
@@ -25,4 +24,30 @@ The Astyx HiRes is a dataset from Astyx for object detection for autonomous driv
        |   ├── groundtruth_obj3d
        |   ├── lidar_vlp16
        └── ├── radar_6455 
+```
+### Usage
+For Low Level Fusion:
+```
+python3 main.py \
+  --saved_fn 'complex_yolov4' \
+  --arch 'darknet' \
+  --cfgfile ./config/cfg/complex_yolov4.cfg \
+  --batch_size 8 \
+  --num_workers 4 \
+  --gpu_idx 0 \
+  --dataset 'astyx' \
+  --low_fusion 
+```
+
+For High Level Fusion:
+```
+python3 main.py \
+  --saved_fn 'complex_yolov4' \
+  --arch 'darknet' \
+  --cfgfile ./config/cfg/complex_yolov4.cfg \
+  --batch_size 8 \
+  --num_workers 4 \
+  --gpu_idx 0 \
+  --dataset 'astyx' \
+  --high_fusion 
 ```
