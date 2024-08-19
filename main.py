@@ -14,7 +14,7 @@ sys.path.append('./')
 
 from models.model_utils import create_model, make_data_parallel
 from utils.train_utils import create_optimizer, create_lr_scheduler
-from config.train_config import parse_train_configs
+from config.train_config_multi import parse_train_configs
 from evaluate import evaluate_mAP
 from train import cleanup, train_one_epoch
 
@@ -115,16 +115,8 @@ def main_worker(gpu_idx, configs):
     configs_eval_dist_both_blobs.disturb_types_training_radar = ['blobs']
 
 
-    configs_eval_dist_lidar_fog = edict(configs.copy())
-    configs_eval_dist_lidar_fog.disturb_types_training_lidar = ['fog']
-    configs_eval_dist_lidar_fog.disturb_types_training_radar = ['None']
-
-    configs_eval_dist_lidar_snow = edict(configs.copy())
-    configs_eval_dist_lidar_snow.disturb_types_training_lidar = ['snow']
-    configs_eval_dist_lidar_snow.disturb_types_training_radar = ['None']
-
     if configs.dataset.upper() == "ASTYX":
-        from data_process_astyx.astyx_dataloader import create_train_dataloader, create_val_dataloader
+        from data_process_astyx.astyx_dataloader_multi import create_train_dataloader, create_val_dataloader
     else:
         raise NotImplementedError
 
@@ -148,8 +140,6 @@ def main_worker(gpu_idx, configs):
     val_best_dist_lidar_blobs = np.zeros(val_list_dim)
     val_best_dist_radar_blobs = np.zeros(val_list_dim)
     val_best_dist_both_blobs = np.zeros(val_list_dim)
-    val_best_dist_lidar_fog = np.zeros(val_list_dim)
-    val_best_dist_lidar_snow = np.zeros(val_list_dim)
 
     for rep in range(configs.repeats):
         configs.set_seed = np.random.randint(10000)
@@ -193,12 +183,6 @@ def main_worker(gpu_idx, configs):
         configs_eval_dist_radar_blobs.subdivisions = int(64 / configs.batch_size)
         configs_eval_dist_both_blobs.set_seed = configs.set_seed
         configs_eval_dist_both_blobs.subdivisions = int(64 / configs.batch_size)
-
-        configs_eval_dist_lidar_fog.set_seed = configs.set_seed
-        configs_eval_dist_lidar_fog.subdivisions = int(64 / configs.batch_size)
-
-        configs_eval_dist_lidar_snow.set_seed = configs.set_seed
-        configs_eval_dist_lidar_snow.subdivisions = int(64 / configs.batch_size)
 
         configs.subdivisions = int(64 / configs.batch_size)
 
@@ -342,16 +326,7 @@ def main_worker(gpu_idx, configs):
             val_best_dist_both_blobs[rep,level_id] = [epoch, precision[0], recall[0], AP[0], f1[0], ap_class[0]]
 
 
-            configs_eval_dist_lidar_fog.disturb_levels_training_lidar = level
-            val_dataloader = create_val_dataloader(configs_eval_dist_lidar_fog)
-            precision, recall, AP, f1, ap_class = evaluate_mAP(val_dataloader, model, configs_eval_dist_lidar_fog, None)
-            val_best_dist_lidar_fog[rep,level_id] = [epoch, precision[0], recall[0], AP[0], f1[0], ap_class[0]]
 
-            configs_eval_dist_lidar_snow.disturb_levels_training_lidar = level
-            val_dataloader = create_val_dataloader(configs_eval_dist_lidar_snow)
-            precision, recall, AP, f1, ap_class = evaluate_mAP(val_dataloader, model, configs_eval_dist_lidar_snow, None)
-            val_best_dist_lidar_snow[rep,level_id] = [epoch, precision[0], recall[0], AP[0], f1[0], ap_class[0]]
-        
         np.save(f"{configs.saved_fn}/eval_dist_none.npy", val_best_dist_none)
         np.save(f"{configs.saved_fn}/eval_best_dist_lidar_add_random_noise.npy", val_best_dist_lidar_add_random_noise)
         np.save(f"{configs.saved_fn}/eval_best_dist_radar_add_random_noise.npy", val_best_dist_radar_add_random_noise)
@@ -371,8 +346,6 @@ def main_worker(gpu_idx, configs):
         np.save(f"{configs.saved_fn}/eval_best_dist_lidar_blobs.npy", val_best_dist_lidar_blobs)
         np.save(f"{configs.saved_fn}/eval_best_dist_radar_blobs.npy", val_best_dist_radar_blobs)
         np.save(f"{configs.saved_fn}/eval_best_dist_both_blobs.npy", val_best_dist_both_blobs)
-        np.save(f"{configs.saved_fn}/eval_best_dist_lidar_fog.npy", val_best_dist_lidar_fog)
-        np.save(f"{configs.saved_fn}/eval_best_dist_lidar_snow.npy", val_best_dist_lidar_snow)
         
 
 if __name__ == '__main__':
