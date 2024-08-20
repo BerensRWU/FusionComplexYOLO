@@ -80,7 +80,7 @@ def evaluate_mAP_high_level(val_loader, model_radar, model_lidar, configs, logge
     model_lidar.eval()
     with torch.no_grad():
         start_time = time.time()
-        for batch_idx, batch_data in enumerate(tqdm(val_loader)):
+        for batch_idx, batch_data in enumerate(val_loader):
             data_time.update(time.time() - start_time)
             _, imgs_radar, imgs_lidar, targets = batch_data
             # Extract labels
@@ -92,16 +92,16 @@ def evaluate_mAP_high_level(val_loader, model_radar, model_lidar, configs, logge
 
             outputs_radar = model_radar(imgs_radar)
             outputs_lidar = model_lidar(imgs_lidar)
-            #outputs_radar = post_processing_v2(outputs_radar, conf_thresh=configs.conf_thresh/3, nms_thresh=configs.nms_thresh/3)
-            #outputs_lidar = post_processing_v2(outputs_lidar, conf_thresh=configs.conf_thresh/3, nms_thresh=configs.nms_thresh/3)
+
             outputs = []
             for b_id in range(len(outputs_lidar)):
                 outputs += [torch.cat((outputs_radar[b_id], outputs_lidar[b_id]))]
             
             outputs = post_processing_v2(outputs, conf_thresh=configs.conf_thresh, nms_thresh=configs.nms_thresh)
 
-            sample_metrics += get_batch_statistics_rotated_bbox(outputs, targets, iou_threshold=configs.iou_thresh)
+            stats = get_batch_statistics_rotated_bbox(outputs, targets, iou_threshold=configs.iou_thresh)
 
+            sample_metrics += stats if stats else [[np.array([]), torch.tensor([]), torch.tensor([])]]
             # measure elapsed time
             # torch.cuda.synchronize()
             batch_time.update(time.time() - start_time)
