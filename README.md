@@ -29,29 +29,68 @@ The Astyx HiRes is a dataset from Astyx for object detection for autonomous driv
        |   ├── lidar_vlp16
        └── ├── radar_6455 
 ```
-### Usage
+### Training
 For Low Level Fusion:
 ```
-python3 main.py \
-  --saved_fn 'complex_yolov4' \
+python3 train.py \
+  --saved_fn 'complexyolov4' \
   --arch 'darknet' \
   --cfgfile ./config/cfg/complex_yolov4.cfg \
   --batch_size 8 \
   --num_workers 4 \
   --gpu_idx 0 \
   --dataset 'astyx' \
+  --checkpoint_freq 300 \
   --low_fusion 
 ```
 
 For High Level Fusion:
 ```
-python3 main.py \
-  --saved_fn 'complex_yolov4' \
+python3 train.py \
+  --saved_fn 'complexyolov4' \
   --arch 'darknet' \
   --cfgfile ./config/cfg/complex_yolov4.cfg \
   --batch_size 8 \
   --num_workers 4 \
   --gpu_idx 0 \
   --dataset 'astyx' \
-  --high_fusion 
+  --checkpoint_freq 300 \
+  --lidar
+
+python3 train.py \
+  --saved_fn 'complexyolov4' \
+  --arch 'darknet' \
+  --cfgfile ./config/cfg/complex_yolov4.cfg \
+  --batch_size 8 \
+  --num_workers 4 \
+  --gpu_idx 0 \
+  --dataset 'astyx' \
+  --checkpoint_freq 300 \
+  --radar \
+```
+### Evaluation
+For Low Level Fusion:
+```
+python3 evaluate.py \
+  --pretrained_path path/to/weights/of/low/level/fusion/model \
+  --cfgfile './config/cfg/complex_yolov4.cfg'\
+  --dataset 'astyx' \
+  --classnames-infor-path '../dataset/astyx/classes_names.txt' \
+  --gpu_idx 0 \
+  --low_fusion \
+  --nms-thresh 0.5 \
+  --conf-thresh 0.5 \
+```
+For High Level Fusion:
+```
+python3 evaluate_high_astyx.py \
+  --pretrained_path_lidar path/to/weights/of/low/level/fusion/model \
+  --pretrained_path_radar path/to/weights/of/low/level/fusion/model \
+  --cfgfile './config/cfg/complex_yolov4.cfg'\
+  --dataset 'astyx' \
+  --classnames-infor-path '../dataset/astyx/classes_names.txt' \
+  --gpu_idx 0 \
+  --high_fusion \
+  --nms-thresh 0.5 \
+  --conf-thresh 0.5
 ```
