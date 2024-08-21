@@ -94,15 +94,7 @@ class astyxDataset(Dataset):
         self.num_samples = len(self.sample_id_list)
 
     def __getitem__(self, index):
-        if False:
-            return self.load_img_only(index)
-        else:
-            if self.mosaic:
-                img_files, rgb_map, targets = self.load_mosaic(index)
-
-                return img_files[0], rgb_map, targets
-            else:
-                return self.load_img_with_targets(index)
+        return self.load_img_with_targets(index)
 
     def load_img_only(self, index):
         """Load only image for the testing phase"""
@@ -332,130 +324,69 @@ class astyxDataset(Dataset):
         return pcData
 
     def add_blobs_lidar(self, pcData, level):
-        amount_blobs = np.random.randint(np.max([1,16 * level**2 - 2]), 16 * level**2 + 3) if level != 0 else 0
-        count = 0
-        while count < amount_blobs:
-            sphere = []
-            offset = [np.random.uniform(cnf.boundary["minX"], cnf.boundary["maxX"]),
-                      np.random.uniform(cnf.boundary["minY"], cnf.boundary["maxY"]),
-                      np.random.uniform(cnf.boundary["minZ"], cnf.boundary["maxZ"])]
-            dist = np.linalg.norm(offset)
-            if dist < 7:
-                continue
-            count += 1
-            theta_length = np.max([1, int(np.round(16 - 3/10*dist) - 3*offset[2])])
-            phi_length = np.max([1,int(np.round(50 - dist))])
+        amount_cluster = np.random.randint(max(1, 16 * parameter**2 - 2), 16 * parameter**2 + 3) if parameter != 0 else 0
 
-            r = np.random.uniform(0.1 + level**2*2,1 + level**2*2)
+    for _ in range(amount_cluster):
+        offset = np.array([np.random.uniform(cnf.boundary["minX"], cnf.boundary["maxX"]),
+                           np.random.uniform(cnf.boundary["minY"], cnf.boundary["maxY"]),
+                           np.random.uniform(cnf.boundary["minZ"], cnf.boundary["maxZ"])])
+        
+        dist = np.linalg.norm(offset)
+        if dist < 7:
+            continue
+        
+        theta_length = max(1, int(round(16 - 3/10 * dist) - 3 * offset[2]))
+        phi_length = max(1, int(round(50 - dist)))
 
-            if offset[2] < -1:
-                theta_list = np.linspace(0, np.pi-1, num = theta_length)
-            elif offset[2] > 1:
-                theta_list = np.linspace(1, np.pi, num = theta_length)
-            else:
-                theta_list = np.linspace(1, np.pi-1, num = theta_length)
+        r = np.random.uniform(0.1 + parameter**2 * 2, 1 + parameter**2 * 2)
+        theta_list = np.linspace(1, np.pi - 1, num=theta_length)
+        phi_list = np.linspace(0.5, np.pi - 0.5, num=phi_length)
 
-            phi_list = np.linspace(0.5, np.pi-0.5, num = phi_length)
+        sphere = np.array([[r * np.sin(theta) * np.cos(phi) + np.random.uniform(-0.1, 0.1),
+                            -r * np.sin(theta) * np.sin(phi) + np.random.uniform(-0.1, 0.1),
+                            r * np.cos(theta) + np.random.uniform(-0.1, 0.1)]
+                           for theta, phi in itertools.product(theta_list, phi_list)])
+        
+        sphere = sphere[sphere[:, 2] > cnf.boundary["minZ"] + 0.2]
+        
+        phi_angle = -np.arctan2(offset[0], offset[1])
+        theta_angle = -np.arcsin(offset[2] / dist)
+        sphere = rotate_points(sphere, rt_matrix(phi_angle, theta_angle))
 
-            for theta, phi in itertools.product(theta_list,phi_list):
-                x = r * np.sin(theta) * np.cos(phi) + np.random.uniform(-0.1,0.1)
-                y = -r * np.sin(theta) * np.sin(phi) + np.random.uniform(-0.1,0.1)
-                z = r * np.cos(theta) + np.random.uniform(-0.1,0.1)
-                sphere += [[x,y,z]]
-            sphere = np.array(sphere)
-            sphere = sphere[sphere[:,2] > cnf.boundary["minZ"]+0.2]
-            
-            phi = -np.arctan2(offset[0],offset[1])
+        sphere += offset
 
-            theta = -np.arcsin(offset[2]/dist)
-            sphere = rotate_points(sphere,rt_matrix(phi,theta))
+        rand_i = np.random.uniform(0, 100) + np.random.normal(0, 4, (len(sphere), 1))
+        rand_cluster = np.column_stack((sphere, rand_i))
 
-            sphere += offset
+        pcData = np.concatenate((pcData, rand_cluster), axis=0)
 
-            rand_i = np.random.uniform(0,100)+ np.random.normal(0,4, (len(sphere),1))
-            rand_blob = np.concatenate((sphere, rand_i),axis=1)
-
-            pcData = np.concatenate((pcData,rand_blob), axis = 0)
-        return pcData
+    return pcData
         
     def add_blobs_radar(self, pcData, level):
-        amount_blobs = np.random.randint(np.max([1,32 * level**2 - 2]), 32 * level**2 + 2)
-        for i in range(int(amount_blobs)):
+        amount_cluster = np.random.randint(max(1, 32 * parameter**2 - 2), 32 * parameter**2 + 2)
 
-            size_blob = np.random.uniform(np.max([1,4 * level-1]),4 * level+1)
-            points_blob = np.random.randint(np.max([1,100 * level**4 - 0]), 100 * level**4+20)
-            
-            rand_x = np.random.normal(scale = size_blob/2, size= points_blob) + np.random.uniform(cnf.boundary["minX"], cnf.boundary["maxX"]) 
-            rand_y = np.random.normal(scale = size_blob/2, size= points_blob) + np.random.uniform(cnf.boundary["minY"], cnf.boundary["maxY"])
-            rand_z = np.random.uniform(0, 2, points_blob) + np.random.uniform(cnf.boundary["minZ"], cnf.boundary["maxZ"])
-            
-            rand_m = np.random.uniform(0, 70, points_blob)
-            rand_v = np.random.uniform(-5, 5, points_blob)
-            
-            rand_blob = np.array([rand_x, rand_y, rand_z, rand_m]).T
-            pcData = np.concatenate((pcData,rand_blob), axis = 0)
-            
+        for _ in range(int(amount_cluster)):
+            size_cluster = np.random.uniform(0.1 + parameter**2 * 2, 1 + parameter**2 * 2,2)
+            points_cluster = np.random.randint(max(1, 100 * parameter**4), 100 * parameter**4 + 20)
+    
+            rand_x = np.random.uniform(0, size_cluster[0], points_cluster) + np.random.uniform(cnf.boundary["minX"], cnf.boundary["maxX"])
+            rand_y = np.random.uniform(0, size_cluster[1], points_cluster) + np.random.uniform(cnf.boundary["minY"], cnf.boundary["maxY"])
+            rand_z = np.random.uniform(0, 1, points_cluster) + np.random.uniform(cnf.boundary["minZ"], cnf.boundary["maxZ"])
+    
+            rand_m = np.random.uniform(0, 70, points_cluster)
+            rand_cluster = np.column_stack([rand_x, rand_y, rand_z, rand_m])
+    
+            pcData = np.concatenate((pcData, rand_cluster), axis=0)
+    
         return pcData
         
     def lose_random_points(self, pcData, level):
-        keep = np.random.choice(pcData.shape[0],size=int(pcData.shape[0]*(1-level)), replace=False)
-        return pcData[keep]
+        keep_indices = np.random.choice(pcData.shape[0], size=int(pcData.shape[0] * (1 - parameter)), replace=False)
+        return pcData[keep_indices]
 
     def add_fog(self, pcData, level):
         level = int(level * 4)
         return simulate_fog_wrapper(pcData, level)
-
-    def load_mosaic(self, index):
-        """loads images in a mosaic
-        Refer: https://github.com/ultralytics/yolov5/blob/master/utils/datasets.py
-        """
-
-        targets_s4 = []
-        img_file_s4 = []
-        if self.random_padding:
-            yc, xc = [int(random.uniform(-x, 2 * self.img_size + x)) for x in self.mosaic_border]  # mosaic center
-        else:
-            yc, xc = [self.img_size, self.img_size]  # mosaic center
-
-        indices = [index] + [random.randint(0, self.num_samples - 1) for _ in range(3)]  # 3 additional image indices
-        for i, index in enumerate(indices):
-            img_file, img, targets = self.load_img_with_targets(index)
-            img_file_s4.append(img_file)
-
-            c, h, w = img.size()  # (3, 608, 608), torch tensor
-
-            # place img in img4
-            if i == 0:  # top left
-                img_s4 = torch.full((c, self.img_size * 2, self.img_size * 2), 0.5, dtype=torch.float)
-                x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc  # xmin, ymin, xmax, ymax (large image)
-                x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
-            elif i == 1:  # top right
-                x1a, y1a, x2a, y2a = xc, max(yc - h, 0), min(xc + w, self.img_size * 2), yc
-                x1b, y1b, x2b, y2b = 0, h - (y2a - y1a), min(w, x2a - x1a), h
-            elif i == 2:  # bottom left
-                x1a, y1a, x2a, y2a = max(xc - w, 0), yc, xc, min(self.img_size * 2, yc + h)
-                x1b, y1b, x2b, y2b = w - (x2a - x1a), 0, max(xc, w), min(y2a - y1a, h)
-            elif i == 3:  # bottom right
-                x1a, y1a, x2a, y2a = xc, yc, min(xc + w, self.img_size * 2), min(self.img_size * 2, yc + h)
-                x1b, y1b, x2b, y2b = 0, 0, min(w, x2a - x1a), min(y2a - y1a, h)
-
-            img_s4[:, y1a:y2a, x1a:x2a] = img[:, y1b:y2b, x1b:x2b]  # img_s4[ymin:ymax, xmin:xmax]
-            padw = x1a - x1b
-            padh = y1a - y1b
-
-            # on image space: targets are formatted as (box_idx, class, x, y, w, l, sin(yaw), cos(yaw))
-            if targets.size(0) > 0:
-                targets[:, 2] = (targets[:, 2] * w + padw) / (2 * self.img_size)
-                targets[:, 3] = (targets[:, 3] * h + padh) / (2 * self.img_size)
-                targets[:, 4] = targets[:, 4] * w / (2 * self.img_size)
-                targets[:, 5] = targets[:, 5] * h / (2 * self.img_size)
-
-            targets_s4.append(targets)
-        if len(targets_s4) > 0:
-            targets_s4 = torch.cat(targets_s4, 0)
-            torch.clamp(targets_s4[:, 2:4], min=0., max=(1. - 0.5 / self.img_size), out=targets_s4[:, 2:4])
-
-        return img_file_s4, img_s4, targets_s4
 
     def __len__(self):
         return len(self.sample_id_list)
